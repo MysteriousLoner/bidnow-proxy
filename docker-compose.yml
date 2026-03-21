@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  bidnow-proxy:
+    build: .
+    container_name: bidnow-proxy
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
