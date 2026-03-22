@@ -285,11 +285,14 @@
         }
 
         const state = (filters.area && filters.area.length > 0) ? filters.area[0] : '';
-        const params = new URLSearchParams({ page: '1', limit: '12' });
+        const params = new URLSearchParams();
         if (state) {
           params.set('state', state);
         }
-        const apiUrl = `${proxyBase}/api/bidnow-properties?${params.toString()}`;
+        const qs = params.toString();
+        const apiUrl = qs
+          ? `${proxyBase}/api/bidnow-properties?${qs}`
+          : `${proxyBase}/api/bidnow-properties`;
         const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`Proxy API returned HTTP ${response.status}`);
@@ -453,6 +456,27 @@ if(selectedEls.length === 0){
       }catch(e){}
     }
 
+    function ensureDefaultFilterSelection(){
+      try {
+        const hasAnySelected = selectors.some(s => {
+          const el = getEl(s);
+          return el && isSelected(el);
+        });
+
+        if (hasAnySelected) return;
+
+        // Default to Kuala Lumpur on initial page load.
+        const defaultSelector = '#col-mAKMIX21et';
+        const defaultEl = getEl(defaultSelector);
+        if (!defaultEl) return;
+
+        defaultEl.classList.add('filter-selected');
+        defaultEl.setAttribute && defaultEl.setAttribute('aria-pressed', 'true');
+      } catch (e) {
+        console.warn('ensureDefaultFilterSelection err', e);
+      }
+    }
+
     function toggleSelect(el){
       if(!el) return;
       try{
@@ -499,6 +523,7 @@ if(selectedEls.length === 0){
 
     // init
     try{ wrap.style.display = 'flex'; }catch(e){}
+    ensureDefaultFilterSelection();
     renderChips();
     setTimeout(()=>{ renderChips(); refreshCards(); }, 120);
   }catch(initErr){

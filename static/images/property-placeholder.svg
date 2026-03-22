@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" role="img" aria-label="No photo available">
+  <rect width="800" height="450" fill="#f1f1f1"/>
+  <g fill="none" stroke="#9a9a9a" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M160 220 L400 70 L640 220"/>
+    <path d="M220 205 V360 H580 V205"/>
+    <rect x="305" y="245" width="95" height="75"/>
+    <rect x="450" y="235" width="85" height="125"/>
+    <path d="M230 170 V95"/>
+  </g>
+  <rect x="170" y="380" width="460" height="8" fill="#a6a6a6"/>
+  <text x="400" y="420" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700" fill="#7f7f7f">NO PHOTO AVAILABLE</text>
+</svg>

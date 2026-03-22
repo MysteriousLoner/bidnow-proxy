@@ -14,6 +14,7 @@ BIDNOW_URL = "https://www.bidnow.my/properties/auction"
 MAX_PAGES = 200
 CACHE_TTL_SECONDS = 24 * 60 * 60
 BACKGROUND_RECRAWL_SECONDS = 24 * 60 * 60
+PLACEHOLDER_IMAGE_PATH = "/static/images/property-placeholder.svg"
 
 _CACHE_LOCK = threading.Lock()
 _LISTING_CACHE: dict[str, dict[str, Any]] = {}
@@ -105,16 +106,20 @@ def _build_property_url(ap: dict[str, Any]) -> str:
 
 
 def _build_image_url(ap: dict[str, Any]) -> str:
-    image = ap.get("image") or {}
-    image_path = image.get("image_path") if isinstance(image, dict) else None
-    if image_path:
-        if str(image_path).startswith("http"):
-            return str(image_path)
-        return f"https://www.bidnow.my/{str(image_path).lstrip('/')}"
+    # Temporary behavior: always return server-hosted placeholder.
+    return PLACEHOLDER_IMAGE_PATH
 
-    property_data = ap.get("property") or {}
-    primary_photo = property_data.get("primary_photo") or ""
-    return primary_photo if isinstance(primary_photo, str) else ""
+
+def _with_absolute_image_url(items: list[dict[str, str]], request_base_url: str) -> list[dict[str, str]]:
+    base = request_base_url.rstrip("/")
+    out: list[dict[str, str]] = []
+    for item in items:
+        cloned = dict(item)
+        image = cloned.get("image") or ""
+        if isinstance(image, str) and image.startswith("/"):
+            cloned["image"] = f"{base}{image}"
+        out.append(cloned)
+    return out
 
 
 def _parse_properties(html: str, limit: int) -> list[dict[str, str]]:
@@ -341,11 +346,13 @@ def bidnow_properties() -> Any:
             502,
         )
 
+    items_for_client = _with_absolute_image_url(items, request.url_root)
+
     return jsonify(
         {
             "ok": True,
-            "count": len(items),
-            "items": items,
+            "count": len(items_for_client),
+            "items": items_for_client,
             "state": state,
             "page": requested_page,
             "total_pages": total_pages,
