@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 from typing import Any
@@ -11,10 +12,12 @@ from flask_cors import CORS
 
 BIDNOW_URL = "https://www.bidnow.my/properties/auction"
 MAX_PAGES = 200
-CACHE_TTL_SECONDS = 300
+CACHE_TTL_SECONDS = 24 * 60 * 60
+BACKGROUND_RECRAWL_SECONDS = 24 * 60 * 60
 
 _CACHE_LOCK = threading.Lock()
 _LISTING_CACHE: dict[str, dict[str, Any]] = {}
+_BACKGROUND_WORKER_STARTED = False
 
 app = Flask(__name__)
 CORS(app)
@@ -199,6 +202,53 @@ def _set_cached_items(state: str | None, items: list[dict[str, str]], total_page
         }
 
 
+def _state_from_cache_key(key: str) -> str | None:
+    return None if key == "ALL" else key
+
+
+def _get_cached_keys() -> list[str]:
+    with _CACHE_LOCK:
+        keys = list(_LISTING_CACHE.keys())
+    if not keys:
+        # Always keep one warm cache for unfiltered requests.
+        return ["ALL"]
+    return keys
+
+
+def _background_recrawl_worker() -> None:
+    while True:
+        time.sleep(BACKGROUND_RECRAWL_SECONDS)
+        keys_to_refresh = _get_cached_keys()
+
+        for key in keys_to_refresh:
+            state = _state_from_cache_key(key)
+            try:
+                items, total_pages = _fetch_all_pages(state=state)
+                _set_cached_items(state=state, items=items, total_pages=total_pages)
+            except requests.RequestException:
+                # Keep existing cache on transient upstream failures.
+                continue
+
+
+def _start_background_recrawl_worker() -> None:
+    global _BACKGROUND_WORKER_STARTED
+    if _BACKGROUND_WORKER_STARTED:
+        return
+
+    # Avoid duplicate workers under Flask debug reloader.
+    if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        return
+
+    thread = threading.Thread(target=_background_recrawl_worker, daemon=True)
+    thread.start()
+    _BACKGROUND_WORKER_STARTED = True
+
+
+@app.before_serving
+def _bootstrap_background_recrawl() -> None:
+    _start_background_recrawl_worker()
+
+
 def _fetch_all_pages(state: str | None) -> tuple[list[dict[str, str]], int]:
     # Fetch page 1 first to discover total pages.
     first_html = _fetch_bidnow_page(state=state, page=1)
@@ -307,4 +357,5 @@ def bidnow_properties() -> Any:
 
 
 if __name__ == "__main__":
+    _start_background_recrawl_worker()
     app.run(host="0.0.0.0", port=8090, debug=True)
