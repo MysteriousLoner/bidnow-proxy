@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from typing import Any
 
 import requests
@@ -9,6 +11,10 @@ from flask_cors import CORS
 
 BIDNOW_URL = "https://www.bidnow.my/properties/auction"
 MAX_PAGES = 200
+CACHE_TTL_SECONDS = 300
+
+_CACHE_LOCK = threading.Lock()
+_LISTING_CACHE: dict[str, dict[str, Any]] = {}
 
 app = Flask(__name__)
 CORS(app)
@@ -150,6 +156,79 @@ def _parse_properties(html: str, limit: int) -> list[dict[str, str]]:
     return properties
 
 
+def _extract_total_pages(html: str) -> int:
+    # Prefer aps.last_page because it is in the same payload as listing data.
+    aps_payload = _extract_json_object_after_marker(html, "var aps =") or {}
+    aps_last_page = aps_payload.get("last_page")
+    if isinstance(aps_last_page, int) and aps_last_page >= 1:
+        return min(aps_last_page, MAX_PAGES)
+
+    # Fallback to separate pagination object if available.
+    pagination_payload = _extract_json_object_after_marker(html, "var pagination =") or {}
+    pagination_last_page = pagination_payload.get("last_page")
+    if isinstance(pagination_last_page, int) and pagination_last_page >= 1:
+        return min(pagination_last_page, MAX_PAGES)
+
+    return 1
+
+
+def _cache_key(state: str | None) -> str:
+    return (state or "ALL").strip().lower() or "ALL"
+
+
+def _get_cached_items(state: str | None) -> tuple[list[dict[str, str]] | None, int | None, bool]:
+    key = _cache_key(state)
+    now = time.time()
+    with _CACHE_LOCK:
+        entry = _LISTING_CACHE.get(key)
+        if not entry:
+            return None, None, False
+        if now - float(entry.get("timestamp", 0.0)) > CACHE_TTL_SECONDS:
+            _LISTING_CACHE.pop(key, None)
+            return None, None, False
+        return entry.get("items"), entry.get("total_pages"), True
+
+
+def _set_cached_items(state: str | None, items: list[dict[str, str]], total_pages: int) -> None:
+    key = _cache_key(state)
+    with _CACHE_LOCK:
+        _LISTING_CACHE[key] = {
+            "timestamp": time.time(),
+            "items": items,
+            "total_pages": total_pages,
+        }
+
+
+def _fetch_all_pages(state: str | None) -> tuple[list[dict[str, str]], int]:
+    # Fetch page 1 first to discover total pages.
+    first_html = _fetch_bidnow_page(state=state, page=1)
+    total_pages = _extract_total_pages(first_html)
+
+    seen_urls: set[str] = set()
+    items: list[dict[str, str]] = []
+
+    def add_items(parsed_items: list[dict[str, str]]) -> None:
+        for item in parsed_items:
+            url = item.get("url", "")
+            if not url:
+                continue
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            items.append(item)
+
+    add_items(_parse_properties(first_html, limit=10000))
+
+    for page_num in range(2, total_pages + 1):
+        html = _fetch_bidnow_page(state=state, page=page_num)
+        parsed = _parse_properties(html, limit=10000)
+        if not parsed:
+            continue
+        add_items(parsed)
+
+    return items, total_pages
+
+
 def _fetch_bidnow_page(state: str | None, page: int) -> str:
     params = _build_bidnow_params(state=state, page=page)
     resp = requests.get(
@@ -175,55 +254,32 @@ def bidnow_properties() -> Any:
     state_arg = (request.args.get("state") or "").strip()
     state = state_arg or None
 
-    page = request.args.get("page", type=int)
-    if page is not None and page < 1:
-        page = 1
+    # page is accepted for backward compatibility but aggregation now always spans all pages.
+    requested_page = request.args.get("page", type=int)
+    if requested_page is not None and requested_page < 1:
+        requested_page = 1
 
+    refresh = (request.args.get("refresh") or "").strip().lower() in {"1", "true", "yes"}
     limit = request.args.get("limit", type=int)
     if limit is not None:
         limit = max(1, min(limit, 10000))
 
     try:
-        items: list[dict[str, str]] = []
-        seen_urls: set[str] = set()
+        cached_items: list[dict[str, str]] | None = None
+        total_pages: int | None = None
+        cache_hit = False
+        if not refresh:
+            cached_items, total_pages, cache_hit = _get_cached_items(state)
 
-        # If page is provided, return data for that page only.
-        if page is not None:
-            html = _fetch_bidnow_page(state=state, page=page)
-            parsed = _parse_properties(html, limit=limit or 10000)
-            for item in parsed:
-                url = item.get("url", "")
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
-                    items.append(item)
-            if limit is not None:
-                items = items[:limit]
+        if cached_items is None or total_pages is None:
+            items, total_pages = _fetch_all_pages(state=state)
+            _set_cached_items(state=state, items=items, total_pages=total_pages)
+            cache_hit = False
         else:
-            # No args/page: crawl pages and return all entries (deduplicated).
-            for page_num in range(1, MAX_PAGES + 1):
-                html = _fetch_bidnow_page(state=state, page=page_num)
-                parsed = _parse_properties(html, limit=10000)
+            items = cached_items
 
-                if not parsed:
-                    break
-
-                added = 0
-                for item in parsed:
-                    url = item.get("url", "")
-                    if url and url not in seen_urls:
-                        seen_urls.add(url)
-                        items.append(item)
-                        added += 1
-
-                        if limit is not None and len(items) >= limit:
-                            break
-
-                if limit is not None and len(items) >= limit:
-                    break
-
-                # Stop if page produced only duplicates.
-                if added == 0:
-                    break
+        if limit is not None:
+            items = items[:limit]
     except requests.RequestException as exc:
         return (
             jsonify(
@@ -236,7 +292,18 @@ def bidnow_properties() -> Any:
             502,
         )
 
-    return jsonify({"ok": True, "count": len(items), "items": items, "state": state, "page": page})
+    return jsonify(
+        {
+            "ok": True,
+            "count": len(items),
+            "items": items,
+            "state": state,
+            "page": requested_page,
+            "total_pages": total_pages,
+            "cached": cache_hit,
+            "cache_ttl_seconds": CACHE_TTL_SECONDS,
+        }
+    )
 
 
 if __name__ == "__main__":

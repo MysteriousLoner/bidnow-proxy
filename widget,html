@@ -221,23 +221,84 @@
       try{ return (el.getAttribute && el.getAttribute('aria-pressed') === 'true'); } catch(e){ return false; }
     }
 
-    // Load properties through local Flask proxy to avoid browser CORS blocks.
+    function parsePriceToNumber(priceText) {
+      if (!priceText) return null;
+      const clean = String(priceText).replace(/[^\d.]/g, '');
+      if (!clean) return null;
+      const value = Number(clean);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function parseLabelRange(label) {
+      const normalized = String(label || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!normalized) return null;
+
+      if (normalized.includes('<') && normalized.includes('300')) {
+        return { min: 0, max: 300000 };
+      }
+      if (normalized.includes('300') && normalized.includes('500')) {
+        return { min: 300000, max: 500000 };
+      }
+      if (normalized.includes('500') && (normalized.includes('1mil') || normalized.includes('1 mil') || normalized.includes('1000000'))) {
+        return { min: 500000, max: 1000000 };
+      }
+      if (normalized.includes('>') && (normalized.includes('1mil') || normalized.includes('1 mil') || normalized.includes('1000000'))) {
+        return { min: 1000000, max: Infinity };
+      }
+      return null;
+    }
+
+    function filterPropertiesByPriceRanges(properties, selectedRanges) {
+      if (!Array.isArray(selectedRanges) || selectedRanges.length === 0) {
+        return properties;
+      }
+
+      const ranges = selectedRanges
+        .map(parseLabelRange)
+        .filter(Boolean);
+
+      if (ranges.length === 0) {
+        return properties;
+      }
+
+      return properties.filter(prop => {
+        const priceValue = parsePriceToNumber(prop.price);
+        if (priceValue === null) return false;
+
+        return ranges.some(range => {
+          if (range.max === Infinity) {
+            return priceValue > range.min;
+          }
+          return priceValue >= range.min && priceValue <= range.max;
+        });
+      });
+    }
+
+    // Load properties through deployed Flask proxy.
     async function fetchProperties(filters) {
       try {
         propertiesListContainer.style.display = 'block';
         propertyGrid.innerHTML = '<div class="sc-loading">Loading properties...</div>';
+        const proxyBase = 'https://bidnow-proxy.ly-utilies-portal.stream';
+        if (window.location.protocol === 'https:' && proxyBase.startsWith('http://')) {
+          throw new Error('Mixed content blocked: page is HTTPS but proxy is HTTP. Serve proxy over HTTPS or use same-origin path.');
+        }
+
         const state = (filters.area && filters.area.length > 0) ? filters.area[0] : '';
         const params = new URLSearchParams({ page: '1', limit: '12' });
         if (state) {
           params.set('state', state);
         }
-        const apiUrl = `http://localhost:8090/api/bidnow-properties?${params.toString()}`;
+        const apiUrl = `${proxyBase}/api/bidnow-properties?${params.toString()}`;
         const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`Proxy API returned HTTP ${response.status}`);
         }
 
         const data = await response.json();
+        if (!data || data.ok !== true || !Array.isArray(data.items)) {
+          throw new Error('Unexpected proxy response format.');
+        }
         if (!data.ok) {
           throw new Error(data.error || 'Proxy API returned an error');
         }
@@ -250,12 +311,13 @@
           url: item.url || '#'
         }));
 
-        displayProperties(properties);
+        const filteredProperties = filterPropertiesByPriceRanges(properties, filters.priceRange);
+        displayProperties(filteredProperties);
       } catch (err) {
         console.error('Error fetching properties:', err);
         propertyGrid.innerHTML = `<div class="sc-error">
           <strong>Unable to load properties</strong><br/>
-          <small>Make sure Flask proxy is running at <code>http://localhost:8090</code>.<br/>Error: ${err.message}</small>
+          <small>Make sure proxy is reachable at <code>http://72.60.211.215:8090</code>.<br/>Error: ${err.message}</small>
         </div>`;
       }
     }
@@ -273,7 +335,7 @@
             <div class="sc-property-location" title="${prop.location}">${prop.location}</div>
             <div class="sc-property-price">${prop.price}</div>
             <div class="sc-property-auction">${prop.auctionDate}</div>
-            <a href="${prop.url}" target="_blank" style="color: #1f7a3b; font-size: 12px; text-decoration: none; font-weight: 500;">View Details →</a>
+            <a href="https://api.whatsapp.com/send?phone=60166601911" target="_blank" style="color: #1f7a3b; font-size: 12px; text-decoration: none; font-weight: 500;">View Details →</a>
           </div>
         </div>
       `).join('');
