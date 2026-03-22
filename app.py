@@ -7,14 +7,14 @@ import time
 from typing import Any
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 BIDNOW_URL = "https://www.bidnow.my/properties/auction"
 MAX_PAGES = 200
 CACHE_TTL_SECONDS = 24 * 60 * 60
 BACKGROUND_RECRAWL_SECONDS = 24 * 60 * 60
-PLACEHOLDER_IMAGE_PATH = "/static/images/property-placeholder.svg"
+PLACEHOLDER_IMAGE_PATH = "/api/property-placeholder.svg"
 
 _CACHE_LOCK = threading.Lock()
 _LISTING_CACHE: dict[str, dict[str, Any]] = {}
@@ -115,9 +115,8 @@ def _with_absolute_image_url(items: list[dict[str, str]], request_base_url: str)
     out: list[dict[str, str]] = []
     for item in items:
         cloned = dict(item)
-        image = cloned.get("image") or ""
-        if isinstance(image, str) and image.startswith("/"):
-            cloned["image"] = f"{base}{image}"
+        # Force a stable server-hosted placeholder URL for all entries.
+        cloned["image"] = f"{base}{PLACEHOLDER_IMAGE_PATH}"
         out.append(cloned)
     return out
 
@@ -301,6 +300,12 @@ def _fetch_bidnow_page(state: str | None, page: int) -> str:
 @app.get("/health")
 def health() -> Any:
     return jsonify({"ok": True})
+
+
+@app.get("/api/property-placeholder.svg")
+def property_placeholder_svg() -> Response:
+    svg = """<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"450\" viewBox=\"0 0 800 450\" role=\"img\" aria-label=\"No photo available\">\n  <rect width=\"800\" height=\"450\" fill=\"#f1f1f1\"/>\n  <g fill=\"none\" stroke=\"#9a9a9a\" stroke-width=\"20\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n    <path d=\"M160 220 L400 70 L640 220\"/>\n    <path d=\"M220 205 V360 H580 V205\"/>\n    <rect x=\"305\" y=\"245\" width=\"95\" height=\"75\"/>\n    <rect x=\"450\" y=\"235\" width=\"85\" height=\"125\"/>\n    <path d=\"M230 170 V95\"/>\n  </g>\n  <rect x=\"170\" y=\"380\" width=\"460\" height=\"8\" fill=\"#a6a6a6\"/>\n  <text x=\"400\" y=\"420\" text-anchor=\"middle\" font-family=\"Arial, Helvetica, sans-serif\" font-size=\"44\" font-weight=\"700\" fill=\"#7f7f7f\">NO PHOTO AVAILABLE</text>\n</svg>"""
+    return Response(svg, mimetype="image/svg+xml")
 
 
 @app.get("/api/bidnow-properties")
