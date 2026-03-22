@@ -244,9 +244,8 @@ def _start_background_recrawl_worker() -> None:
     _BACKGROUND_WORKER_STARTED = True
 
 
-@app.before_serving
-def _bootstrap_background_recrawl() -> None:
-    _start_background_recrawl_worker()
+# Start worker at import time for WSGI/container runs; guard prevents duplicates.
+_start_background_recrawl_worker()
 
 
 def _fetch_all_pages(state: str | None) -> tuple[list[dict[str, str]], int]:
