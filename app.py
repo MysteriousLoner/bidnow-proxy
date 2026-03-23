@@ -393,6 +393,40 @@ def admin_delete_custom_image(property_id: str) -> Any:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ===== API Aliases For Admin (VPS/Proxy Compatibility) =====
+
+@api_bp.get("/admin")
+@api_bp.get("/admin/")
+def api_admin_panel() -> Any:
+    """Serve admin panel from /api/admin for proxies that only forward /api/*."""
+    return serve_admin_panel()
+
+
+@api_bp.post("/admin/login")
+def api_admin_login() -> Any:
+    return admin_login()
+
+
+@api_bp.post("/admin/logout")
+def api_admin_logout() -> Any:
+    return admin_logout()
+
+
+@api_bp.post("/admin/upload-photo")
+def api_admin_upload_photo() -> Any:
+    return admin_upload_photo()
+
+
+@api_bp.get("/admin/properties")
+def api_admin_get_properties() -> Any:
+    return admin_get_properties()
+
+
+@api_bp.delete("/admin/custom-image/<property_id>")
+def api_admin_delete_custom_image(property_id: str) -> Any:
+    return admin_delete_custom_image(property_id)
+
+
 # ===== Background Worker =====
 
 def _initial_sync() -> None:
@@ -464,8 +498,6 @@ def _start_background_worker() -> None:
 # Register blueprints
 app.register_blueprint(api_bp)
 app.register_blueprint(admin_bp)
-# Also expose admin endpoints under /api/admin for reverse proxies that only forward /api/*.
-app.register_blueprint(admin_bp, url_prefix="/api/admin", name="admin_api")
 
 # Start background worker at import time
 _start_background_worker()
