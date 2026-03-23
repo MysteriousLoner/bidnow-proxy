@@ -455,7 +455,8 @@
 </div>
 
 <script>
-const API_BASE = `${window.location.origin}/admin`;
+const ADMIN_PREFIX = window.location.pathname.startsWith("/api/admin") ? "/api/admin" : "/admin";
+const API_BASE = `${window.location.origin}${ADMIN_PREFIX}`;
 let sessionToken = localStorage.getItem("bidnow_session");
 let allProperties = [];
 let filteredProperties = [];

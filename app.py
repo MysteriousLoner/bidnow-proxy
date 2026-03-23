@@ -464,6 +464,8 @@ def _start_background_worker() -> None:
 # Register blueprints
 app.register_blueprint(api_bp)
 app.register_blueprint(admin_bp)
+# Also expose admin endpoints under /api/admin for reverse proxies that only forward /api/*.
+app.register_blueprint(admin_bp, url_prefix="/api/admin", name="admin_api")
 
 # Start background worker at import time
 _start_background_worker()
