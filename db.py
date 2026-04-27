@@ -25,6 +25,7 @@ def init_db() -> None:
                 location TEXT NOT NULL,
                 price TEXT NOT NULL,
                 auction_date TEXT NOT NULL,
+                property_type TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -67,7 +68,7 @@ def upsert_properties(items: list[dict[str, str]]) -> dict[str, int]:
     Insert or update properties. Returns counts of inserted and updated.
     
     Args:
-        items: List of property dicts with keys: url, location, price, auction_date
+        items: List of property dicts with keys: url, location, price, auction_date, property_type
         
     Returns:
         Dict with 'inserted', 'updated', 'deleted' counts
@@ -97,19 +98,19 @@ def upsert_properties(items: list[dict[str, str]]) -> dict[str, int]:
                 cursor.execute(
                     """
                     UPDATE properties 
-                    SET location = ?, price = ?, auction_date = ?, updated_at = CURRENT_TIMESTAMP
+                    SET location = ?, price = ?, auction_date = ?, property_type = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE url = ?
                     """,
-                    (item.get("location"), item.get("price"), item.get("auction_date"), url)
+                    (item.get("location"), item.get("price"), item.get("auction_date"), item.get("property_type"), url)
                 )
                 updated += 1
             else:
                 cursor.execute(
                     """
-                    INSERT INTO properties (url, location, price, auction_date)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO properties (url, location, price, auction_date, property_type)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (url, item.get("location"), item.get("price"), item.get("auction_date"))
+                    (url, item.get("location"), item.get("price"), item.get("auction_date"), item.get("property_type"))
                 )
                 inserted += 1
         
