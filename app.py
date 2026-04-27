@@ -174,6 +174,11 @@ def api_bidnow_properties() -> Any:
         
         # Add image URLs
         items_with_images = _with_image_urls(items)
+        
+        # Extract unique property types for the response
+        property_types = sorted(set(
+            item.get("property_type", "Other") for item in items_with_images
+        ))
     
     except requests.RequestException as exc:
         return jsonify({
@@ -190,6 +195,7 @@ def api_bidnow_properties() -> Any:
         "cached": cache_hit,
         "cache_ttl_seconds": CACHE_TTL_SECONDS,
         "total_in_db": db.get_property_count(),
+        "available_property_types": property_types,
     })
 
 

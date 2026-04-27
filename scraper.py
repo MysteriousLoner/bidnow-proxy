@@ -131,6 +131,38 @@ def build_property_url(ap: dict[str, Any]) -> str:
     return "#"
 
 
+def extract_property_type(property_data: dict[str, Any]) -> str:
+    """Extract property type from property data."""
+    # Try common field names for property type
+    prop_type = (
+        property_data.get("property_type")
+        or property_data.get("category")
+        or property_data.get("type")
+        or property_data.get("property_category")
+        or ""
+    )
+    
+    if isinstance(prop_type, str):
+        prop_type = prop_type.strip()
+    else:
+        prop_type = str(prop_type) if prop_type else ""
+    
+    # Map to standard categories if recognized
+    prop_type_lower = prop_type.lower()
+    if any(x in prop_type_lower for x in ["apartment", "condo", "condominium", "flat"]):
+        return "Condominium"
+    if any(x in prop_type_lower for x in ["house", "landed"]):
+        return "House"
+    if "commercial" in prop_type_lower:
+        return "Commercial"
+    if "industrial" in prop_type_lower:
+        return "Industrial"
+    if "land" in prop_type_lower:
+        return "Land"
+    
+    return prop_type if prop_type else "Other"
+
+
 def parse_properties(html: str, limit: int = 10000) -> list[dict[str, str]]:
     """Parse property listings from HTML."""
     aps_payload = extract_json_object_after_marker(html, "var aps =")
@@ -153,6 +185,8 @@ def parse_properties(html: str, limit: int = 10000) -> list[dict[str, str]]:
             or property_data.get("full_address")
             or "No location"
         )
+        
+        property_type = extract_property_type(property_data)
 
         auction_date = ap.get("auction_date") or "-"
         auction_time = ap.get("auction_time") or "-"
@@ -164,6 +198,7 @@ def parse_properties(html: str, limit: int = 10000) -> list[dict[str, str]]:
                 "location": str(location),
                 "price": format_reserved_price(ap.get("reserved_price")),
                 "auction_date": auction_date_time,
+                "property_type": property_type,
             }
         )
 

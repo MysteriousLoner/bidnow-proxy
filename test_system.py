@@ -54,7 +54,8 @@ def test_database():
                 "url": "https://example.com/prop1",
                 "location": "Test Location 1",
                 "price": "RM 100,000",
-                "auction_date": "2024-03-25 (10:00 AM)"
+                "auction_date": "2024-03-25 (10:00 AM)",
+                "property_type": "House"
             }
         ]
         

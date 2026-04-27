@@ -1,0 +1,638 @@
+<!-- =========================
+  Selected Filters Chip Widget (With Clear All Button)
+  Copy-paste: replace your existing Selected Filters Widget block with this whole chunk
+============================= -->
+
+<div id="ghl-selected-chips-widget" aria-live="polite" style="max-width:100%; display:block;">
+  <style>
+    #ghl-selected-chips-widget { 
+      font-family: Manrope, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
+    }
+
+    .sc-chips-wrap {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px dashed #d6d6d6;
+      background: #fff;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      min-height: 54px;
+      box-sizing: border-box;
+    }
+
+    .sc-properties-list {
+      margin-top: 24px;
+      padding: 0;
+    }
+
+    .sc-properties-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1f3b2d;
+    }
+
+    .sc-property-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .sc-property-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .sc-property-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .sc-property-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background: #f0f0f0;
+    }
+
+    .sc-property-content {
+      padding: 12px;
+    }
+
+    .sc-property-location {
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+      margin-bottom: 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .sc-property-price {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f3b2d;
+      margin-bottom: 8px;
+    }
+
+    .sc-property-auction {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .sc-loading {
+      text-align: center;
+      padding: 20px;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .sc-error {
+      text-align: center;
+      padding: 20px;
+      color: #c7254e;
+      font-size: 14px;
+    }
+
+    .sc-empty-note {
+      color: #9aa0a6;
+      font-size: 14px;
+    }
+
+    .sc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 24px;
+      background: #e9f4ea;
+      border: 1px solid #d2e6d3;
+      color: #1f3b2d;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .sc-chip .sc-label { display:inline-block; }
+
+    .sc-chip .sc-remove {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:20px;
+      height:20px;
+      border-radius:50%;
+      background:transparent;
+      color:#2a2a2a;
+      cursor:pointer;
+      font-weight:700;
+      line-height:20px;
+    }
+    .sc-chip .sc-remove:hover { color:#b02b2b; }
+
+    /* Clear All button */
+    .clear-all-btn {
+      margin-left: auto;
+      padding: 8px 16px;
+      border: 1px solid #c7c7c7;
+      background: #ffffff;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.2s;
+      color: #333;
+    }
+    .clear-all-btn:hover {
+      background: #f1f1f1;
+      transform: translateY(-2px);
+    }
+
+    @media (max-width:640px){
+      .sc-chips-wrap { gap:8px; padding:10px; }
+      .sc-chip { font-size:13px; padding:7px 12px; }
+      .sc-property-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    }
+  </style>
+
+  <div style="margin-bottom: 20px; padding: 14px; background: #f9f9f9; border-radius: 8px;">
+    <label for="sc-property-type-select" style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #1f3b2d;">Property Type</label>
+    <select id="sc-property-type-select" style="width: 100%; padding: 10px; border: 1px solid #d6d6d6; border-radius: 6px; font-size: 14px; cursor: pointer;">
+      <option value="">All Property Types</option>
+    </select>
+  </div>
+
+  <div class="sc-chips-wrap" id="sc-chips-wrap">
+    <div class="sc-empty-note">No filters selected</div>
+  </div>
+
+  <div class="sc-properties-list" id="sc-properties-list" style="display:none;">
+    <div class="sc-properties-title">Available Properties</div>
+    <div class="sc-property-grid" id="sc-property-grid"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  try{
+    const mapping = {
+      '#col-LR5ul_WoYY': 'Johor',
+      '#col-mAKMIX21et': 'Kuala Lumpur',
+      '#col-EbEYbeuOCA': 'Selangor',
+      '#col-V06kCeYpWN': 'Melaka',
+      '#col-nZ7YyTv9sb': '< RM 300K',
+      '#col-4j7kSppS2l': 'RM300K - RM500K',
+      '#col-9h5dqKHlHR': 'RM 500K - RM 1Mil',
+      '#col-1IKyZIqKCm': '> RM 1Mil',
+      '#col-HD6ZatO-cL': 'Auction',
+      '#col-XuWtjY9Xcj': 'Rental',
+      '#col-OzlA09pWxW': 'Subsale',
+      '#col-fvkVIBY-_t': 'Project',
+      '#col-BpZSwkkKy8': 'Commercial',
+      '#col-d9LYZ6MZa0': 'Industrial',
+      '#col-aV0rVH9KSn': 'Land',
+      '#col-fBlUfEbLjz': 'Residence',
+      '#col-sDpTwcTIKN': '10%',
+      '#col-NncDUMeOQY': '20%',
+      '#col-8Ezp6csPWM': '>30%'
+    };
+
+    const supportedSelectors = [
+      '#col-LR5ul_WoYY',
+      '#col-mAKMIX21et',
+      '#col-EbEYbeuOCA',
+      '#col-V06kCeYpWN',
+      '#col-nZ7YyTv9sb',
+      '#col-4j7kSppS2l',
+      '#col-9h5dqKHlHR',
+      '#col-1IKyZIqKCm'
+    ];
+    const unsupportedSelectors = [
+      '#col-HD6ZatO-cL',
+      '#col-XuWtjY9Xcj',
+      '#col-OzlA09pWxW',
+      '#col-fvkVIBY-_t',
+      '#col-BpZSwkkKy8',
+      '#col-d9LYZ6MZa0',
+      '#col-aV0rVH9KSn',
+      '#col-fBlUfEbLjz',
+      '#col-sDpTwcTIKN',
+      '#col-NncDUMeOQY',
+      '#col-8Ezp6csPWM'
+    ];
+    const selectors = supportedSelectors;
+    const selString = selectors.join(', ');
+
+    let wrap = document.getElementById('sc-chips-wrap');
+    const propertiesListContainer = document.getElementById('sc-properties-list');
+    const propertyGrid = document.getElementById('sc-property-grid');
+    const propertyTypeSelect = document.getElementById('sc-property-type-select');
+
+    if(!wrap){
+      const parent = document.getElementById('ghl-selected-chips-widget') || document.body;
+      wrap = document.createElement('div');
+      wrap.id = 'sc-chips-wrap';
+      wrap.className = 'sc-chips-wrap';
+      wrap.style.display = 'flex';
+      parent.appendChild(wrap);
+    }
+
+    function getEl(sel){ try{ return document.querySelector(sel); }catch(e){ return null; } }
+    function isSelected(el){
+      if(!el) return false;
+      if(el.classList.contains('filter-selected')) return true;
+      if(el.classList.contains('active')) return true;
+      try{ return (el.getAttribute && el.getAttribute('aria-pressed') === 'true'); } catch(e){ return false; }
+    }
+
+    function parsePriceToNumber(priceText) {
+      if (!priceText) return null;
+      const normalized = String(priceText).toLowerCase().replace(/,/g, '').replace(/\s+/g, ' ').trim();
+      const match = normalized.match(/(\d+(?:\.\d+)?)(?:\s*)(k|m|mil|million)?/i);
+      if (!match) return null;
+      let value = Number(match[1]);
+      if (!Number.isFinite(value)) return null;
+      const suffix = (match[2] || '').toLowerCase();
+      if (suffix === 'k') {
+        value *= 1000;
+      } else if (suffix === 'm' || suffix === 'mil' || suffix === 'million') {
+        value *= 1000000;
+      }
+      return value;
+    }
+
+    function parseLabelRange(label) {
+      const normalized = String(label || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!normalized) return null;
+
+      const readAmount = (text) => {
+        const amountMatch = String(text || '').match(/(\d+(?:\.\d+)?)/);
+        if (!amountMatch) return null;
+
+        let amount = Number(amountMatch[1]);
+        if (!Number.isFinite(amount)) return null;
+
+        const lowered = String(text || '').toLowerCase();
+        if (lowered.includes('mil') || lowered.includes('million')) {
+          amount *= 1000000;
+        } else if (lowered.includes('k')) {
+          amount *= 1000;
+        }
+        return amount;
+      };
+
+      if (normalized.startsWith('<')) {
+        const upper = readAmount(normalized);
+        return upper ? { min: 0, max: upper } : null;
+      }
+
+      if (normalized.startsWith('>')) {
+        const lower = readAmount(normalized);
+        return lower ? { min: lower, max: Infinity } : null;
+      }
+
+      if (normalized.includes('-')) {
+        const parts = normalized.split('-').map(part => part.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          const min = readAmount(parts[0]);
+          const max = readAmount(parts[1]);
+          if (min !== null && max !== null) {
+            return { min, max };
+          }
+        }
+      }
+
+      return null;
+    }
+
+    function filterPropertiesByPriceRanges(properties, selectedRanges) {
+      if (!Array.isArray(selectedRanges) || selectedRanges.length === 0) {
+        return properties;
+      }
+
+      const ranges = selectedRanges
+        .map(parseLabelRange)
+        .filter(Boolean);
+
+      if (ranges.length === 0) {
+        return properties;
+      }
+
+      return properties.filter(prop => {
+        const priceValue = parsePriceToNumber(prop.price);
+        if (priceValue === null) return false;
+
+        return ranges.some(range => {
+          if (range.max === Infinity) {
+            return priceValue > range.min;
+          }
+          return priceValue >= range.min && priceValue <= range.max;
+        });
+      });
+    }
+
+    function filterPropertiesByType(properties, selectedType) {
+      if (!selectedType || selectedType === '') {
+        return properties;
+      }
+
+      return properties.filter(prop => {
+        return (prop.propertyType || 'Other').toLowerCase() === selectedType.toLowerCase();
+      });
+    }
+
+    // Load properties through deployed Flask proxy.
+    async function fetchProperties(filters) {
+      try {
+        propertiesListContainer.style.display = 'block';
+        propertyGrid.innerHTML = '<div class="sc-loading">Loading properties...</div>';
+        const proxyBase = 'https://bidnow-proxy.ly-utilies-portal.stream';
+        if (window.location.protocol === 'https:' && proxyBase.startsWith('http://')) {
+          throw new Error('Mixed content blocked: page is HTTPS but proxy is HTTP. Serve proxy over HTTPS or use same-origin path.');
+        }
+
+        const state = (filters.area && filters.area.length > 0) ? filters.area[0] : '';
+        const params = new URLSearchParams();
+        if (state) {
+          params.set('state', state);
+        }
+        const qs = params.toString();
+        const apiUrl = qs
+          ? `${proxyBase}/api/bidnow-properties?${qs}`
+          : `${proxyBase}/api/bidnow-properties`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`Proxy API returned HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data || data.ok !== true || !Array.isArray(data.items)) {
+          throw new Error('Unexpected proxy response format.');
+        }
+        if (!data.ok) {
+          throw new Error(data.error || 'Proxy API returned an error');
+        }
+
+        // Populate property type dropdown if available
+        if (Array.isArray(data.available_property_types)) {
+          const currentValue = propertyTypeSelect.value;
+          const optionsHtml = '<option value="">All Property Types</option>' + 
+            data.available_property_types.map(pt => 
+              `<option value="${pt}">${pt}</option>`
+            ).join('');
+          propertyTypeSelect.innerHTML = optionsHtml;
+          propertyTypeSelect.value = currentValue;
+        }
+
+        const properties = (data.items || []).map(item => ({
+          location: item.location || 'No location',
+          price: item.price || 'N/A',
+          auctionDate: item.auction_date || 'N/A',
+          propertyType: item.property_type || 'Other',
+          image: item.image || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="200"%3E%3Crect fill="%23f0f0f0" width="400" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="18"%3ENo Image%3C/text%3E%3C/svg%3E',
+          url: item.url || '#'
+        }));
+
+        let filteredProperties = filterPropertiesByPriceRanges(properties, filters.priceRange);
+        filteredProperties = filterPropertiesByType(filteredProperties, filters.propertyType);
+        displayProperties(filteredProperties);
+      } catch (err) {
+        console.error('Error fetching properties:', err);
+        propertyGrid.innerHTML = `<div class="sc-error">
+          <strong>Unable to load properties</strong><br/>
+          <small>Make sure proxy is reachable at <code>http://72.60.211.215:8090</code>.<br/>Error: ${err.message}</small>
+        </div>`;
+      }
+    }
+
+    function displayProperties(properties) {
+      if (properties.length === 0) {
+        propertyGrid.innerHTML = '<div class="sc-error">No properties found matching the selected filters.</div>';
+        return;
+      }
+
+      propertyGrid.innerHTML = properties.map(prop => `
+        <div class="sc-property-card">
+          <img src="${prop.image}" alt="${prop.location}" class="sc-property-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22200%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2218%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+          <div class="sc-property-content">
+            <div class="sc-property-location" title="${prop.location}">${prop.location}</div>
+            <div class="sc-property-price">${prop.price}</div>
+            <div class="sc-property-auction">${prop.auctionDate}</div>
+            <a href="https://api.whatsapp.com/send?phone=60166601911" target="_blank" style="color: #1f7a3b; font-size: 12px; text-decoration: none; font-weight: 500;">View Details →</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function refreshCards(){
+      try{
+        if(window.ghlFilterRefresh && typeof window.ghlFilterRefresh === 'function'){
+          window.ghlFilterRefresh();
+          return;
+        }
+        if(window.cardFilter && typeof window.cardFilter.showAll === 'function'){
+          window.cardFilter.showAll();
+        }
+      }catch(e){ console.warn('refreshCards err', e); }
+    }
+
+    function renderChips(){
+      try{
+        clearUnsupportedSelections();
+        wrap.innerHTML = '';
+        const selectedEls = selectors.map(s => getEl(s)).filter(el => el && isSelected(el));
+if(selectedEls.length === 0){
+  wrap.innerHTML = '<div class="sc-empty-note">No filters selected</div>';
+  propertiesListContainer.style.display = 'none';
+  
+  if (propertyTypeSelect) {
+    propertyTypeSelect.value = '';
+  }
+
+  if (window.applyAndFilters) {
+    window.applyAndFilters({ area: [], priceRange: [], propertyType: '' });
+  }
+
+  refreshCards();
+  return;
+}
+
+        const activeFilters = {
+          area: [],
+          priceRange: [],
+          propertyType: propertyTypeSelect.value
+        };
+
+        selectedEls.forEach(el => {
+          const sel = selectors.find(s => getEl(s) === el);
+          const label = mapping[sel];
+
+          if (["Johor","Kuala Lumpur","Selangor","Melaka"].includes(label)) {
+            activeFilters.area.push(label);
+          }
+
+          if (label && label.includes("RM")) {
+            activeFilters.priceRange.push(label);
+          }
+        });
+
+        if (window.applyAndFilters) {
+          window.applyAndFilters(activeFilters);
+        }
+
+        selectedEls.forEach(el=>{
+          const sel = selectors.find(s => getEl(s) === el);
+          const label = mapping[sel] || (el.innerText || '').trim() || sel;
+          const chip = document.createElement('div');
+          chip.className = 'sc-chip';
+          chip.innerHTML = `<span class="sc-label">${label}</span><span class="sc-remove" role="button" aria-label="remove">×</span>`;
+          chip.querySelector('.sc-remove').onclick = function(ev){
+            ev.stopPropagation();
+            try{ el.classList.remove('filter-selected','active'); el.setAttribute && el.setAttribute('aria-pressed','false'); }catch(e){}
+            updateBodyActiveFlag();
+            renderChips();
+            refreshCards();
+          };
+          wrap.appendChild(chip);
+        });
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'clear-all-btn';
+        clearBtn.type = 'button';
+        clearBtn.innerText = 'Clear All Filters';
+        clearBtn.onclick = function(){
+          selectors.forEach(s=>{
+            const el = getEl(s);
+            if(el){
+              el.classList.remove('filter-selected','active');
+              el.setAttribute && el.setAttribute('aria-pressed','false');
+            }
+          });
+          unsupportedSelectors.forEach(s=>{
+            const el = getEl(s);
+            if(el){
+              el.classList.remove('filter-selected','active');
+              el.setAttribute && el.setAttribute('aria-pressed','false');
+            }
+          });
+          updateBodyActiveFlag();
+          renderChips();
+          refreshCards();
+        };
+        wrap.appendChild(clearBtn);
+
+        // Fetch and display properties with the selected filters
+        fetchProperties(activeFilters);
+      }catch(err){ console.error('renderChips error', err); }
+    }
+
+    function updateBodyActiveFlag(){
+      try{
+        const any = selectors.some(s => { const el = getEl(s); return el && isSelected(el); });
+        if(any) document.body.classList.add('has-active-filter'); else document.body.classList.remove('has-active-filter');
+      }catch(e){}
+    }
+
+    function clearUnsupportedSelections(){
+      unsupportedSelectors.forEach(s => {
+        const el = getEl(s);
+        if (!el) return;
+        if (isSelected(el)) {
+          try {
+            el.classList.remove('filter-selected', 'active');
+            el.setAttribute && el.setAttribute('aria-pressed', 'false');
+          } catch (e) {}
+        }
+      });
+    }
+
+    function ensureDefaultFilterSelection(){
+      try {
+        const hasAnySelected = selectors.some(s => {
+          const el = getEl(s);
+          return el && isSelected(el);
+        });
+
+        if (hasAnySelected) return;
+
+        // Default to Kuala Lumpur on initial page load.
+        const defaultSelector = '#col-mAKMIX21et';
+        const defaultEl = getEl(defaultSelector);
+        if (!defaultEl) return;
+
+        defaultEl.classList.add('filter-selected');
+        defaultEl.setAttribute && defaultEl.setAttribute('aria-pressed', 'true');
+      } catch (e) {
+        console.warn('ensureDefaultFilterSelection err', e);
+      }
+    }
+
+    function toggleSelect(el){
+      if(!el) return;
+      try{
+        if(isSelected(el)){
+          el.classList.remove('filter-selected','active');
+          el.setAttribute && el.setAttribute('aria-pressed','false');
+        } else {
+          el.classList.add('filter-selected');
+          el.setAttribute && el.setAttribute('aria-pressed','true');
+        }
+        updateBodyActiveFlag();
+        renderChips();
+        refreshCards();
+      }catch(e){ console.warn('toggleSelect err', e); }
+    }
+
+    // click handler for the filter buttons
+    document.addEventListener('click', function(e){
+      try{
+        const clicked = e.target.closest && e.target.closest(selString);
+        if(!clicked) return;
+        toggleSelect(clicked);
+      }catch(e){}
+    }, false);
+
+    // Property type dropdown change handler
+    if (propertyTypeSelect) {
+      propertyTypeSelect.addEventListener('change', function() {
+        renderChips();
+        refreshCards();
+      });
+    }
+
+    // observe attribute changes on known selectors:
+    const observer = new MutationObserver(function(){
+      renderChips();
+      updateBodyActiveFlag();
+      refreshCards();
+    });
+
+    setInterval(()=> {
+      selectors.forEach(s=>{
+        try{
+          const el = getEl(s);
+          if(el && !el.__ghl_obs_attached){
+            observer.observe(el, { attributes:true, attributeFilter:['class','aria-pressed'] });
+            el.__ghl_obs_attached = true;
+          }
+        }catch(e){}
+      });
+    }, 600);
+
+    // init
+    try{ wrap.style.display = 'flex'; }catch(e){}
+    ensureDefaultFilterSelection();
+    renderChips();
+    setTimeout(()=>{ renderChips(); refreshCards(); }, 120);
+  }catch(initErr){
+    console.error('Selected Filters Widget init failed', initErr);
+  }
+})();
+</script>
