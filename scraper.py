@@ -133,9 +133,10 @@ def build_property_url(ap: dict[str, Any]) -> str:
 
 def extract_property_type(property_data: dict[str, Any]) -> str:
     """Extract property type from property data."""
-    # Try common field names for property type
+    # BidNow stores property type in the 'description' field
     prop_type = (
-        property_data.get("property_type")
+        property_data.get("description")
+        or property_data.get("property_type")
         or property_data.get("category")
         or property_data.get("type")
         or property_data.get("property_category")
@@ -147,10 +148,16 @@ def extract_property_type(property_data: dict[str, Any]) -> str:
     else:
         prop_type = str(prop_type) if prop_type else ""
     
-    # Map to standard categories if recognized
+    # Map to standard categories if recognized, keeping BidNow descriptions as-is for direct match
     prop_type_lower = prop_type.lower()
-    if any(x in prop_type_lower for x in ["apartment", "condo", "condominium", "flat"]):
-        return "Condominium"
+    
+    # Return the original prop_type if it matches common BidNow categories
+    if prop_type_lower in ["apartment", "house", "commercial", "industrial", "land", "shop", "office", "retail"]:
+        return prop_type
+    
+    # Otherwise, try to map variations
+    if any(x in prop_type_lower for x in ["apartment", "condo", "condominium", "flat", "soho"]):
+        return "Apartment"
     if any(x in prop_type_lower for x in ["house", "landed"]):
         return "House"
     if "commercial" in prop_type_lower:
